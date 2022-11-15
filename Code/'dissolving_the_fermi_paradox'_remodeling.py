@@ -110,6 +110,61 @@ def drake_sims_v4(n_trials=10**6, R_min=0, R_max=2,
 
   return N_storage
 
+def drake_sims_v5(n_trials=10**6, 
+               fl_alpha=0.5, fl_beta=0.5, 
+               fl_bayes_factor=3.0, 
+               fi_alpha=0.5, fi_beta=0.5, 
+               fi_bayes_factor=0.67, 
+               fc_alpha=0.5, fc_beta=0.5, 
+               L_mean = 10**3):
+  """
+  Simulate order of magnitude of number of civilizations in the Milky Way
+
+  Details of number of planets in Kepler dataset taken from
+    https://exoplanetarchive.ipac.caltech.edu/docs/counts_detail.html
+  """
+
+  # Recent galactic star formation rate
+  # >1.65 solar masses per year into new stars
+  # About 0.5 solar masses per new star
+  rate_of_star_formation = 3 # per year
+  # Values from Kepler space telescope data
+  num_kepler_stars_observed = 150000
+  # About 2% of all planets in correct orientation to be detected
+  # by transit method
+  num_stars_correct_orien = 0.02*num_kepler_stars_observed
+  num_kepler_planets_confirmed = 2708
+  mean_num_stars_w_planet = num_kepler_planets_confirmed/num_stars_correct_orien
+  num_kepler_hab_planets_confirmed = 361
+
+  R = np.random.gamma(shape=rate_of_star_formation, 
+                      scale=1, # per one year
+                      size=n_trials)
+  fp = np.random.beta(num_kepler_planets_confirmed, 
+                      (1-mean_num_stars_w_planet)*num_stars_correct_orien,
+                      size=n_trials)
+  ne = np.random.gamma(shape=num_kepler_hab_planets_confirmed, 
+                       scale=1/num_kepler_planets_confirmed, 
+                       size=n_trials)
+  fl = np.random.beta(fl_alpha, fl_beta, size=n_trials)
+  fi = np.random.beta(fi_alpha, fi_beta, size=n_trials)
+  fc = np.random.beta(fc_alpha, fc_beta, size=n_trials)
+
+  R = np.log10(R)
+  fp = np.log10(fp)
+  ne = np.log10(ne)
+  fl = np.log10(fl_bayes_factor) + np.log10(fl) - \
+        np.log10(fl_bayes_factor*fl - fl + 1)
+  fi = np.log10(fi_bayes_factor) + np.log10(fi) - \
+        np.log10((fi_bayes_factor)*fi - fi + 1)
+  fc = np.log10(fc)
+
+  L = np.log10(np.random.exponential(L_mean, size=n_trials))
+
+  N_storage = R+fp+ne+fl+fi+fc+L #calculate fermi estimate for given values
+
+  return N_storage
+
 def plot_prior_frequency_of_num_civs(N_storage, subtitle=None):
   """
   Plotting the distrubtion of Drake equation simulations based on the uncertainties 
@@ -130,10 +185,10 @@ def plot_prior_frequency_of_num_civs(N_storage, subtitle=None):
   ax.tick_params(axis="y", labelsize=13)
   plt.axvline(x=-10, color='0.5', 
               linestyle='--', 
-              label="Alone in Milky Way") #line for alone in universe
+              label="Alone in Universe") #line for alone in universe
   plt.axvline(x=0, color='0.3', 
               linestyle='--', 
-              label="Alone in Universe") #line for alone in Milky Way
+              label="Alone in Milky Way") #line for alone in Milky Way
   plt.xlim(-40, 12)
   plt.suptitle("Probability Density Function", y=1.02, fontsize=16)
   plt.title(subtitle)
@@ -214,16 +269,16 @@ def plot_prosterier_frequency_of_civs(N_storage, true_list, subtitle=None):
   ax.tick_params(axis="y", labelsize=13)
   plt.axvline(x=-10, color='0.7', 
               linestyle='--', 
-              label="Alone in Milky Way") #line for alone in universe
+              label="Alone in Universe") #line for alone in universe
   plt.axvline(x=0, color='0.4', 
               linestyle='--', 
-              label="Alone in Universe") #line for alone in Milky Way
+              label="Alone in Milky Way") #line for alone in Milky Way
   plt.xlim(-40, 12)
   plt.suptitle("Probability Density Function", y=1.02, fontsize=16)
   plt.title(subtitle)
   plt.xlabel("log$_{10}$($N$)")
   plt.ylabel("Frequency")
-  plt.legend()
+  plt.legend(loc='upper left')
   plt.show()
 
   #print results
@@ -315,7 +370,7 @@ plot_probability_of_n_civs(N_optimistic_results[optimistic_is_detected_list])
 
 """# Better Version of Priors"""
 
-N_better_results = drake_sims_v4(n_trials=10**6, fl_alpha=0.5, fl_beta=0.5, 
+N_better_results = drake_sims_v5(n_trials=10**6, fl_alpha=0.5, fl_beta=0.5, 
                                  fi_alpha=0.5, fi_beta=0.5, L_mean=3*10**2)
 
 plot_prior_frequency_of_num_civs(N_better_results)
@@ -326,12 +381,12 @@ better_is_detected_list = is_detected_poisson_dist(N_better_results)
 
 plot_prosterier_frequency_of_civs(N_better_results, better_is_detected_list, subtitle="Better Priors")
 
-
-
 """##Life found in the Solar System"""
 
-N_ss_life_results = drake_sims_v4(n_trials=10**6, fl_alpha=2, fl_beta=1, 
-                                 fi_alpha=0.5, fi_beta=0.5, L_mean=3*10**2)
+N_ss_life_results = drake_sims_v5(n_trials=10**6, fl_alpha=2, fl_beta=1, 
+                                  fi_alpha=0.5, fi_beta=0.5, 
+                                  fc_alpha=0.5, fc_beta=0.5, 
+                                  L_mean=3*10**2)
 
 plot_prior_frequency_of_num_civs(N_ss_life_results)
 
@@ -340,3 +395,4 @@ plot_probability_of_n_civs(N_ss_life_results)
 ss_life_is_detected_list = is_detected_poisson_dist(N_ss_life_results)
 
 plot_prosterier_frequency_of_civs(N_ss_life_results, ss_life_is_detected_list, subtitle="If Life Found beyond Earth in Solar System")
+
